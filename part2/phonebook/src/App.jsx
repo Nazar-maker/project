@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import phServices from "./services/phServices";
 
 const Filter = (props) => {
   const { searchName, handleSearchChanged } = props;
@@ -27,39 +27,38 @@ const PersonForm = (props) => {
   );
 };
 
-const Persons = (props) => {
-  const { show } = props;
-  return (
-    <>
-      {show.map((person) => (
-        <div key={person.id}>
-          {person.name} {person.number}
-        </div>
-      ))}
-    </>
-  );
-};
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [searchName, setSearchName] = useState("");
   useEffect(() => {
-    axios.get("http://localhost:3001/persons").then((response) => {
-      setPersons(response.data);
+    phServices.getAll().then((response) => {
+      setPersons(response);
     });
   }, []);
   const addToPhonebook = (event) => {
     event.preventDefault();
-    if (persons.map((p) => p.name).includes(newName))
-      alert(`${newName} is already added to phonebook`);
-    else {
+    if (persons.map((p) => p.name).includes(newName)) {
+      if (
+        window.confirm(
+          `${newName} is already added to phonebook, replace the old number with a new one?`
+        )
+      ) {
+        const person = persons.find((n) => n.name === newName);
+        const changedPerson = { ...person, number: newPhone };
+        phServices.update(person.id, changedPerson).then((response) => {
+          setPersons(persons.map((p) => (p.name === newName ? response : p)));
+        });
+      }
+    } else {
       const personObject = {
         name: newName,
         number: newPhone,
-        id: persons.length + 1,
       };
-      setPersons(persons.concat(personObject));
+      phServices.create(personObject).then((response) => {
+        setPersons(persons.concat(response));
+      });
     }
     setNewName("");
     setNewPhone("");
@@ -72,6 +71,13 @@ const App = () => {
   };
   const handleSearchChanged = (event) => {
     setSearchName(event.target.value);
+  };
+  const handleDelete = (id) => {
+    const person = persons.filter((n) => n.id === id);
+    if (window.confirm(`Delete ${person[0].name}?`)) {
+      phServices.remove(id);
+      setPersons(persons.toSpliced(persons.indexOf(person[0]), 1));
+    }
   };
   const personsToShow =
     searchName.length > 0
@@ -99,7 +105,12 @@ const App = () => {
       />
 
       <h3>Numbers</h3>
-      <Persons show={personsToShow} />
+      {personsToShow.map((person) => (
+        <div key={person.id}>
+          {person.name} {person.number} {"      "}
+          <button onClick={() => handleDelete(person.id)}>delete</button>
+        </div>
+      ))}
     </div>
   );
 };
