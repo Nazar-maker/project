@@ -27,11 +27,42 @@ const PersonForm = (props) => {
   );
 };
 
+const Notification = ({ message, type }) => {
+  if (message === null) {
+    return null;
+  }
+  if (type === "error") {
+    const notificationStyle = {
+      color: "red",
+      background: "lightgrey",
+      fontSize: "20",
+      borderStyle: "solid",
+      borderRadius: "5",
+      padding: "10",
+      marginBottom: "10",
+    };
+    return <div style={notificationStyle}>{message}</div>;
+  }
+  const notificationStyle = {
+    color: "green",
+    background: "lightgrey",
+    fontSize: "20",
+    borderStyle: "solid",
+    borderRadius: "5",
+    padding: "10",
+    marginBottom: "10",
+  };
+  return <div style={notificationStyle}>{message}</div>;
+};
+
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [searchName, setSearchName] = useState("");
+  const [addedNotification, setAddedNotification] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+
   useEffect(() => {
     phServices.getAll().then((response) => {
       setPersons(response);
@@ -47,9 +78,19 @@ const App = () => {
       ) {
         const person = persons.find((n) => n.name === newName);
         const changedPerson = { ...person, number: newPhone };
-        phServices.update(person.id, changedPerson).then((response) => {
-          setPersons(persons.map((p) => (p.name === newName ? response : p)));
-        });
+        phServices
+          .update(person.id, changedPerson)
+          .then((response) => {
+            setPersons(persons.map((p) => (p.name === newName ? response : p)));
+          })
+          .catch(() => {
+            setErrorMessage(
+              `Information of ${person.name} has alrady been removed from server`
+            );
+            setTimeout(() => {
+              setErrorMessage(null);
+            }, 3000);
+          });
       }
     } else {
       const personObject = {
@@ -58,6 +99,10 @@ const App = () => {
       };
       phServices.create(personObject).then((response) => {
         setPersons(persons.concat(response));
+        setAddedNotification(`Added ${personObject.name}`);
+        setTimeout(() => {
+          setAddedNotification(null);
+        }, 3000);
       });
     }
     setNewName("");
@@ -88,6 +133,8 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={addedNotification} />
+      <Notification message={errorMessage} type={"error"} />
       <Filter
         searchName={searchName}
         handleSearchChanged={handleSearchChanged}
